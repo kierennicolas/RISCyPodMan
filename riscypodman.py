@@ -31,7 +31,6 @@ import shutil
 import socket
 import builtins
 
-# --- Python 3 guard -----------------------------------------------------------
 if sys.version_info < (3, 4):
     sys.exit("ERROR: Python 3.4 or later is required.")
 
@@ -1736,21 +1735,21 @@ def menu_main():
         if cu == 'Q':
             print('\n  Goodbye!\n')
             sys.exit(0)
-        elif ch == 'A':
+        elif cu == 'A':
             sec('Add Podcast')
             url = ask('RSS feed URL')
             if url:
                 add_feed(url)
                 pause()
-        elif ch == 'G':
+        elif cu == 'G':
             menu_search_gpodder()
-        elif ch == 'R':
+        elif cu == 'R':
             sec('Refreshing All Feeds')
             refresh_all()
             pause()
-        elif ch == 'S':
+        elif cu == 'S':
             menu_settings()
-        elif ch == 'N':
+        elif cu == 'N':
             menu_new_episodes()
         elif ch.isdigit():
             n = int(ch) - 1
