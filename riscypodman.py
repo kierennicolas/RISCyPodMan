@@ -1332,6 +1332,70 @@ def parse_feed(data_bytes, feed_url):
         channel = root
     return _parse_rss2(channel, feed_url)
 
+# --------------------------------------------------------------------------
+#  OPML IMPORT / EXPORT
+# --------------------------------------------------------------------------
+
+def export_opml(path=None):
+    """Write all subscribed feeds to an OPML 2.0 file. Returns (path, error)."""
+    if path is None:
+        path = os.path.join(_CONFIG_DIR, local_name('subscriptions', 'opml'))
+
+    root = ET.Element('opml', version='2.0')
+    head = ET.SubElement(root, 'head')
+    ET.SubElement(head, 'title').text = 'Podcast subscriptions'
+    ET.SubElement(head, 'dateCreated').text = now_iso()
+    body = ET.SubElement(root, 'body')
+
+    for feed in _feeds.values():
+        attrs = {
+            'type':   'rss',
+            'text':   feed.get('title', 'Untitled'),
+            'title':  feed.get('title', 'Untitled'),
+            'xmlUrl': feed.get('url', ''),
+        }
+        if feed.get('website'):
+            attrs['htmlUrl'] = feed['website']
+        if feed.get('description'):
+            attrs['description'] = feed['description'][:200]
+        ET.SubElement(body, 'outline', **attrs)
+
+    try:
+        with open(path, 'wb') as f:
+            f.write(b'<?xml version="1.0" encoding="utf-8"?>\n')
+            ET.ElementTree(root).write(f, encoding='utf-8', xml_declaration=False)
+        return path, None
+    except Exception as e:
+        return None, str(e)
+
+
+def import_opml(path):
+    """
+    Import feeds from an OPML file.
+    Returns (added_count, skipped_count, error_list).
+    """
+    if not os.path.exists(path):
+        return 0, 0, ['File not found: ' + path]
+
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError as e:
+        return 0, 0, ['XML parse error: ' + str(e)]
+
+    added = skipped = 0
+    for outline in _iter_opml_outlines(root):
+        xml_url = (outline.get('xmlUrl') or outline.get('xmlurl') or
+                   outline.get('url') or '').strip()
+        if not xml_url or not allowed_remote_url(xml_url):
+            continue
+        title = outline.get('title') or outline.get('text') or xml_url
+        info('Importing: ' + trunc(title, 60))
+        if add_feed(xml_url):
+            added += 1
+        else:
+            skipped += 1   # already subscribed or failed (add_feed printed the reason)
+
+    return added, skipped, []
 
 # --------------------------------------------------------------------------
 #  FEED OPERATIONS
@@ -1725,6 +1789,7 @@ def menu_main():
               BD, RS, BD, RS, BD, RS))
         print('  {}N{} New/unlistened  {}S{} Settings        {}Q{} Quit'.format(
               BD, RS, BD, RS, BD, RS))
+        print('  {}I{} Import OPML      {}E{} Export OPML'.format(BD, RS, BD, RS))
         if feed_list:
             print('  Enter a number to open that podcast')
         print()
@@ -1758,6 +1823,28 @@ def menu_main():
             else:
                 warn('No podcast with that number.')
                 time.sleep(1)
+        elif cu == 'I':
+            sec('Import OPML')
+            default_path = os.path.join(_CONFIG_DIR, local_name('subscriptions', 'opml'))
+            path = ask('OPML file path', default=default_path)
+            if path:
+                added, skipped, errs = import_opml(path)
+                for e_msg in errs:
+                    err(e_msg)
+                ok('Import done: {} added, {} skipped/already subscribed.'.format(added, skipped))
+                pause()
+
+        elif cu == 'E':
+            sec('Export OPML')
+            default_path = os.path.join(_CONFIG_DIR, local_name('subscriptions', 'opml'))
+            path = ask('Save OPML to', default=default_path)
+            if path:
+                out, errmsg = export_opml(path)
+                if errmsg:
+                    err('Export failed: ' + errmsg)
+                else:
+                    ok('Exported {} feed(s) to: {}'.format(len(_feeds), out))
+                pause()
         elif ch:
             warn('Unknown command.')
             time.sleep(0.8)
