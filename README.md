@@ -22,6 +22,8 @@ Current script version: **v1.3**
 - Download individual episodes or all undownloaded episodes
 - Mark episodes as listened or unlistened
 - View unlistened episodes across all podcasts
+- Import podcast subscriptions from an OPML file
+- Export podcast subscriptions to an OPML file compatible with GPodder and other podcast managers
 - Store podcast and episode data as JSON
 - Use atomic JSON writes to reduce the chance of metadata corruption
 - Apply per-host rate limiting for feed and media requests
@@ -62,6 +64,8 @@ Typical commands from the main screen:
 - `G` — Search for podcasts via gpodder.net
 - `R` — Refresh all feeds
 - `N` — Show new or unlistened episodes
+- `I` — Import subscriptions from an OPML file
+- `E` — Export subscriptions to an OPML file
 - `S` — Settings
 - `Q` — Quit
 - number — Open a podcast
@@ -70,6 +74,33 @@ In most menus:
 - type a number and press Enter to select
 - type a letter command and press Enter
 - press Enter on its own to go back or cancel
+
+## OPML import and export
+
+Riscy-PodMan can import and export podcast subscriptions using the OPML 2.0 format, which is compatible with GPodder and most other podcast managers.
+
+### Exporting
+
+Press `E` from the main menu.
+
+You will be prompted for a file path. The default is:
+
+- Linux: `~/.config/podcastmanager/subscriptions.opml`
+- RISC OS: `<Choices$Write>.RiscyPodMan.subscriptions-opml`
+
+The exported file contains one `<outline>` element per feed, carrying the feed title, RSS URL, website URL, and a short description where available. It can be imported directly into GPodder on Linux.
+
+### Importing
+
+Press `I` from the main menu.
+
+You will be prompted for the path to an OPML file. The same default path is suggested, so a file exported from Riscy-PodMan can be re-imported immediately.
+
+The importer:
+- handles nested OPML files, including GPodder exports that group feeds inside category folders
+- skips any outline that does not carry a valid `http` or `https` feed URL
+- calls the normal feed-add logic for each entry, so rate limiting, retries, and duplicate detection all apply
+- reports how many feeds were added and how many were skipped or already subscribed
 
 ## Feed search with gpodder.net
 
@@ -166,6 +197,7 @@ This includes:
 - `config.json`
 - `feeds.json`
 - `episodes/`
+- `subscriptions.opml` (created on first export)
 
 Downloads default to:
 
@@ -228,7 +260,6 @@ If a feed still fails, try:
 - No audio playback is built in
 - No streaming mode
 - No background refresh daemon
-- No OPML export or import yet
 - Feed recovery from websites depends on the site exposing a detectable RSS or Atom link
 
 ## Example workflow
@@ -241,6 +272,12 @@ If a feed still fails, try:
 6. Open a podcast by number
 7. Download an episode with `D<n>`
 8. Mark it listened with `L<n>`
+
+To move subscriptions to GPodder:
+
+1. Press `E` to export
+2. Open GPodder
+3. Import the `subscriptions.opml` file via GPodder's subscription import
 
 ## Troubleshooting
 
@@ -258,14 +295,13 @@ If the raw XML is unchanged, the script should report that the feed is unchanged
 
 ### RISC OS filenames look odd
 
-That is expected. Characters unsafe for RISC OS paths are replaced so downloaded episode names remain usable.
+That is expected. Characters unsafe for RISC OS paths are replaced so downloaded episode names remain usable. The OPML file is stored without a dot extension on RISC OS for the same reason.
 
 ## Development notes
 
 The script is deliberately conservative and portable. It aims to run on older Python versions and to avoid outside dependencies.
 
 Possible future improvements:
-- OPML import and export
 - local playback hooks
 - per-feed refresh settings
 - feed URL editing
